@@ -113,10 +113,10 @@ def scrape_car_data(url, domain):
             for item in car_list_items:
                 # Extract the basic car information
                 car_info = get_car_info(item, domain, f)
-
+                print(f"Got all info for car: {car_info['name']}")
                 # Extract the additional car information
                 scrape_additional_info(car_info)
-                print(f"Got all info for car: {car_info['name']}")
+                print("saved to file ...\n")
 
                 # If the car lot number already exists in the dictionary, update the existing entry
                 if car_info['lot'] in car_data:
@@ -157,11 +157,12 @@ def scrape_additional_info(car_info):
         car_info['image_links'] = list(set([img['src'] for img in soup.select('img[src^="https://media.tbauctions.com/image-media/"]')]))
 
         # Extract the lot information from the link page
-        car_info['lot_info'] = {}
+        lot_info = {}
         key_elements = soup.select('dt[class*="LotMetadata_key"]')
         value_elements = soup.select('dd[class*="LotMetadata_value"]')
         for item, value in zip(key_elements, value_elements):
-            car_info['lot_info'][item.text.strip()] = value.text.strip()
+            lot_info[item.text.strip()] = value.text.strip()
+        car_info.update(lot_info)
     else:
         print("Error:", response.status_code)
 
@@ -182,6 +183,4 @@ with open('car_data.json', 'w', encoding='utf-8') as f:
         # Write the car info to the JSON file
         json.dump(car_info, f, ensure_ascii=False)
         f.write('\n')
-
-        # Print the car info that was written to the file
         print(f"Wrote car info to file.")
