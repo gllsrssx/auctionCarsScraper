@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Car Data</title>
+    <script>
+        // Function to set a cookie
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + value + expires + "; path=/";
+        }
+
+        // Function to get a cookie
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i];
+                while (cookie.charAt(0) == ' ') {
+                    cookie = cookie.substring(1, cookie.length);
+                }
+                if (cookie.indexOf(nameEQ) == 0) {
+                    return cookie.substring(nameEQ.length, cookie.length);
+                }
+            }
+            return null;
+        }
+
+        // Function to update the filter form with stored values
+        function updateFilterForm() {
+            var transmissie = getCookie('transmissie');
+            var max_kilometers = getCookie('max_kilometers');
+            var min_bouwjaar = getCookie('min_bouwjaar');
+
+            document.getElementById('transmissie').value = transmissie || '';
+            document.getElementById('max_kilometers').value = max_kilometers || 250000;
+            document.getElementById('min_bouwjaar').value = min_bouwjaar || 2008;
+        }
+
+        // Function to handle form submission and store filter criteria in cookies
+        function applyFilters() {
+            var transmissie = document.getElementById('transmissie').value;
+            var max_kilometers = document.getElementById('max_kilometers').value;
+            var min_bouwjaar = document.getElementById('min_bouwjaar').value;
+
+            setCookie('transmissie', transmissie, 30);  // Store for 30 days
+            setCookie('max_kilometers', max_kilometers, 30);
+            setCookie('min_bouwjaar', min_bouwjaar, 30);
+
+            // Redirect to the same page with the filter criteria in the URL
+            window.location.href = window.location.pathname + '?' +
+                'transmissie=' + encodeURIComponent(transmissie) + '&' +
+                'max_kilometers=' + encodeURIComponent(max_kilometers) + '&' +
+                'min_bouwjaar=' + encodeURIComponent(min_bouwjaar);
+        }
+
+        // Initialize filter form with stored values
+        updateFilterForm();
+    </script>
+</head>
+
+<body>
+    <h1>Car Data</h1>
+    <form onsubmit="applyFilters(); return false;">
+        <label for="transmissie">Transmission Type:</label>
+        <select name="transmissie" id="transmissie">
+            <option value="">Any</option>
+            <option value="automaat">Automatic</option>
+            <!-- Add other transmission types as needed -->
+        </select>
+
+        <label for="max_kilometers">Maximum Kilometers:</label>
+        <input type="number" name="max_kilometers" id="max_kilometers" value="250000">
+
+        <label for="min_bouwjaar">Minimum Year:</label>
+        <input type="number" name="min_bouwjaar" id="min_bouwjaar" value="2008">
+
+        <input type="submit" value="Apply Filters">
+    </form>
+
+    <table>
+        <tr>
+            <th>Lot Number</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Time</th>
+            <th>Bids</th>
+        </tr>
+        <!-- Car data will be displayed here -->
+    </table>
+</body>
+
+</html>
