@@ -184,4 +184,4 @@ with open('car_data.json', 'w', encoding='utf-8') as f:
         f.write('\n')
 
         # Print the car info that was written to the file
-        print(f"Wrote car info to file: {car_info}")
+        print(f"Wrote car info to file.")
