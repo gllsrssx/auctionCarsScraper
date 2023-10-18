@@ -1,6 +1,7 @@
 # .gitignore
 
 node_modules/
+scraping_log.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
