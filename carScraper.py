@@ -1,16 +1,23 @@
-import logging
 import os
 import requests
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime, timedelta
+import logging
 
-vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
-troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+# URLs for scraping
+urls = [
+    "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52",
+    "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+]
+
+# Initialize existing data
+existing_car_data = []
 
 # Configure logging
 logging.basicConfig(filename='scraping_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Function to convert time string to a formatted datetime
 def convert_time(time_string):
     current_datetime = datetime.now()
     try:
@@ -44,6 +51,7 @@ def convert_time(time_string):
         pass
     return None
 
+# Function to get car information from a page
 def get_car_info(item, domain):
     car_info = {}
     car_info['name'] = item.select_one('[class^="title-5 LotsOverviewListItem_title_"]').text.strip()
@@ -51,38 +59,15 @@ def get_car_info(item, domain):
     time_string = item.select_one('[class^="Countdown_timer_"]').text.strip()
     time_formatted = convert_time(time_string)
     car_info['time'] = time_formatted
-    bids_element = item.select_one('[class^="LotsOverviewListItem_countBids_"]')
-    car_info['bids'] = bids_element.text.strip().replace("Biedingen: ", "") if bids_element else -1
-    car_info['price'] = item.select_one('[class^="LotsOverviewListItem_wrapperPriceAndAction_"] span').text.strip()
-    car_info['img'] = item.select_one('img[src^="https://media.tbauctions.com/image-media/"]')['src']
     car_info['link'] = domain + item.select_one('a[class^="LotsOverviewListItem_link_"]')['href']
     car_info['lot'] = item.select_one('[class^="LotsOverviewListItem_lotNumber_"]').text.strip()
+    # Extract other car information here
     scrape_additional_info(car_info)
     return car_info
 
-
-def scrape_car_data(url, domain, existing_car_data):
-    car_data = existing_car_data
-    new_car_data = []  
-    while url:
-        print(f"Scraping page: {url}\n")
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        car_list_items = soup.select('[class^="LotsOverview_item_"]')
-        for item in car_list_items:
-            car_info = get_car_info(item, domain)
-            scrape_additional_info(car_info)
-            new_car_data.append(car_info) 
-            print(f"Scraped car: {car_info['name']}\tTime: {car_info['time']}\n")
-        next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
-        url = domain + next_page_link['href'] if next_page_link else None
-        if not url:
-            print("No next page found\n")
-    return car_data + new_car_data  # Combine the existing and new car data
-
-
+# Function to scrape additional information from the car's page
 def scrape_additional_info(car_info):
-    response = requests.get(car_info['link'])
+    response = requests.get(car_info['link'], headers={'User-Agent': 'Mozilla/5.0'})
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
         car_info['image_links'] = list(set([img['src'] for img in soup.select('img[src^="https://media.tbauctions.com/image-media/"]')]))
@@ -92,27 +77,52 @@ def scrape_additional_info(car_info):
         for item, value in zip(key_elements, value_elements):
             lot_info[item.text.strip()] = value.text.strip()
         car_info.update(lot_info)
-        print(lot_info)
     else:
-        print("Error:", response.status_code)
+        print("Error: ", response.status_code)
 
-existing_car_data = []
-if os.path.exists('car_data.json') and os.path.getsize('car_data.json') > 0:
+# Function to scrape and store car data
+def scrape_and_store_car_data(url, domain, existing_car_data):
+    car_data = existing_car_data
+    
+    while url:
+        logging.info(f"Scraping page: {url}")
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            car_list_items = soup.select('[class^="LotsOverview_item_"]')
+            
+            for item in car_list_items:
+                car_info = get_car_info(item, domain)
+                lot_number = car_info['lot']
+                if lot_number in car_data:
+                    existing_info = car_data[lot_number]
+                    if car_info['time'] > existing_info['time']:
+                        existing_info.update(car_info)
+                else:
+                    car_data[lot_number] = car_info
+            
+            next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
+            url = domain + next_page_link['href'] if next_page_link else None
+            if not url:
+                logging.info("No next page found")
+            time.sleep(1) 
+        else:
+            logging.error(f"Error while scraping {url}. Status code: {response.status_code}")
+
+    return car_data
+
+# Load existing data from the JSON file
+existing_car_data = {}
+if os.path.exists('car_data.json'):
     with open('car_data.json', 'r', encoding='utf-8') as f:
-        existing_car_data = {entry['lot']: entry for entry in json.load(f)}
+        existing_car_data = json.load(f)
 
-vavato_data = scrape_car_data(vavato_url, "https://vavato.com", existing_car_data)
-troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, "https://www.troostwijkauctions.com", existing_car_data)
+# Scrape and store data for all URLs
+for url in urls:
+    existing_car_data = scrape_and_store_car_data(url, url, existing_car_data)
 
-car_data = {**vavato_data, **troostwijkauctions_data}
-unique_car_data = {}
-
-for lot, car_info in car_data.items():
-    if lot not in unique_car_data or car_info['time'] > unique_car_data[lot]['time']:
-        unique_car_data[lot] = car_info
-
+# Combine and store unique car data
 with open('car_data.json', 'w', encoding='utf-8') as f:
-    json.dump(unique_car_data, f, ensure_ascii=False, indent=4)
-    f.write('\n')
+    json.dump(existing_car_data, f, ensure_ascii=False, indent=4)
 
 print("Done")
