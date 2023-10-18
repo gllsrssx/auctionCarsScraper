@@ -4,45 +4,58 @@ import requests
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime, timedelta
+import re
 
+# Configuration parameters
 vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
 troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+log_file = 'scraping_log.txt'
+data_file = 'car_data.json'
 
 # Configure logging
-logging.basicConfig(filename='scraping_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def convert_time(time_string):
+def convert_time(input_string):
+    time_pattern = r'\d{2}:\d{2}(:\d{2})?'
+    weekday_pattern = r'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'
+    daynumber_pattern = r'\d{2}'
+    month_pattern = r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec'
+
+    time_match = re.search(time_pattern, input_string)
+    weekday_match = re.search(weekday_pattern, input_string)
+    daynumber_match = re.search(daynumber_pattern, input_string)
+    month_match = re.search(month_pattern, input_string)
+
     current_datetime = datetime.now()
-    try:
-        countdown_time = datetime.strptime(time_string, "%H:%M:%S").time()
-        current_time = current_datetime.time()
-        countdown_datetime = datetime.combine(current_datetime.date(), countdown_time)
-        if countdown_time < current_time:
-            countdown_datetime += timedelta(days=1)
-        result_datetime = current_datetime + (countdown_datetime - datetime.combine(current_datetime.date(), datetime.min.time()))
-        return f"{result_datetime.strftime('%H:%M:%S %d/%m')}"
+    result_datetime = current_datetime
 
-    except ValueError:
-        pass
-    try:
-        if "Opens" in time_string:
-            day, time_string = time_string.replace("Opens","").split(" at ")
-            day, time_string = day.strip(), time_string.strip()
-            time_object = datetime.strptime(time_string, "%H:%M").time()
-            date_object = current_datetime + timedelta(days=(datetime.strptime(day, "%A").weekday() - current_datetime.weekday()) % 7)
-            return f"{time_object.strftime('%H:%M:%S %d/%m')}"
-    except ValueError:
-        pass
-    try:
-        if "Closes" in time_string:
-            day, time_string = time_string.replace("Closes","").split(" at ")
-            day, time_string = day.strip(), time_string.strip()
-            time_object = datetime.strptime(time_string, "%H:%M").time()
-            date_object = current_datetime + timedelta(days=(datetime.strptime(day, "%A").weekday() - current_datetime.weekday()) % 7)
-            return f"{time_object.strftime('%H:%M:%S %d/%m')}"
-    except ValueError:
-        pass
-    return None
+    if time_match:
+        while len(time_match.group(0)) < 8:
+            time_match = re.search(time_pattern, time_match.group(0) + ":00"[:8])
+        time = datetime.strptime(time_match.group(0), '%H:%M:%S')
+
+        if weekday_match:
+            day = weekday_match.group(0)
+            weekday_indices = {day: i for i, day in enumerate(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])}
+            day_difference = (weekday_indices[day] - current_datetime.weekday()) % 7
+            result_datetime += timedelta(days=day_difference)
+            result_datetime = result_datetime.replace(hour=time.hour, minute=time.minute, second=time.second)
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+        
+        elif month_match:        
+            month_indices = {month: i for i, month in enumerate(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov','Dec'])}
+            month = month_indices[month_match.group(0)]+1
+            result_datetime = result_datetime.replace(month=month)
+            day = daynumber_match.group(0)
+            result_datetime = result_datetime.replace(day=int(day))
+            result_datetime = result_datetime.replace(hour=time.hour, minute=time.minute, second=time.second) 
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+
+        else:
+            result_datetime += timedelta(hours=time.hour, minutes=time.minute, seconds=time.second)
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+    else:
+        return None
 
 def get_car_info(item, domain):
     car_info = {}
@@ -73,7 +86,6 @@ def scrape_car_data(url, domain, existing_car_data):
             car_info = get_car_info(item, domain)
             scrape_additional_info(car_info)
             new_car_data.append(car_info) 
-            print(f"Scraped car: {car_info['name']}\tTime: {car_info['time']}\n")
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
         url = domain + next_page_link['href'] if next_page_link else None
         if not url:
@@ -92,27 +104,36 @@ def scrape_additional_info(car_info):
         for item, value in zip(key_elements, value_elements):
             lot_info[item.text.strip()] = value.text.strip()
         car_info.update(lot_info)
-        print(lot_info)
     else:
         print("Error:", response.status_code)
 
-existing_car_data = []
-if os.path.exists('car_data.json') and os.path.getsize('car_data.json') > 0:
-    with open('car_data.json', 'r', encoding='utf-8') as f:
-        existing_car_data = {entry['lot']: entry for entry in json.load(f)}
+def load_existing_data():
+    if os.path.exists(data_file) and os.path.getsize(data_file) > 0:
+        with open(data_file, 'r', encoding='utf-8') as f:
+            return {entry['lot']: entry for entry in json.load(f)}
+    return []
 
-vavato_data = scrape_car_data(vavato_url, "https://vavato.com", existing_car_data)
-troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, "https://www.troostwijkauctions.com", existing_car_data)
+def merge_and_filter_data(*data_sources):
 
-car_data = {**vavato_data, **troostwijkauctions_data}
-unique_car_data = {}
+    car_data = []
+    for data_source in data_sources:
+        for lot, car_info in data_source.items():
+            if lot not in car_data or car_info['time'] > car_data[lot]['time']:
+                car_data[lot] = car_info
+    return car_data
 
-for lot, car_info in car_data.items():
-    if lot not in unique_car_data or car_info['time'] > unique_car_data[lot]['time']:
-        unique_car_data[lot] = car_info
+def save_data(car_data):
+    with open(data_file, 'w', encoding='utf-8') as f:
+        json.dump(car_data, f, ensure_ascii=False, indent=4)
+        f.write('\n')
 
-with open('car_data.json', 'w', encoding='utf-8') as f:
-    json.dump(unique_car_data, f, ensure_ascii=False, indent=4)
-    f.write('\n')
+def main():
+    existing_car_data = load_existing_data()
+    vavato_data = scrape_car_data(vavato_url, "https://vavato.com", existing_car_data)
+    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, "https://www.troostwijkauctions.com", existing_car_data)
+    car_data = merge_and_filter_data(existing_car_data, vavato_data, troostwijkauctions_data)
+    save_data(car_data)
+    logging.info("Data update and save complete")
 
-print("Done")
+if __name__ == '__main__':
+    main()

@@ -1,57 +1,62 @@
+import logging
 import os
 import requests
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime, timedelta
-import logging
+import re
 
-# URLs for scraping
-urls = [
-    "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52",
-    "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
-]
-
-# Initialize existing data
-existing_car_data = []
+# Configuration parameters
+vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+log_file = 'scraping_log.txt'
+data_file = 'car_data.json'
 
 # Configure logging
-logging.basicConfig(filename='scraping_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Function to convert time string to a formatted datetime
-def convert_time(time_string):
+def convert_time(input_string):
+    time_pattern = r'\d{2}:\d{2}(:\d{2})?'
+    weekday_pattern = r'Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday'
+    daynumber_pattern = r'\d{2}'
+    month_pattern = r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec'
+
+    time_match = re.search(time_pattern, input_string)
+    weekday_match = re.search(weekday_pattern, input_string)
+    daynumber_match = re.search(daynumber_pattern, input_string)
+    month_match = re.search(month_pattern, input_string)
+
     current_datetime = datetime.now()
-    try:
-        countdown_time = datetime.strptime(time_string, "%H:%M:%S").time()
-        current_time = current_datetime.time()
-        countdown_datetime = datetime.combine(current_datetime.date(), countdown_time)
-        if countdown_time < current_time:
-            countdown_datetime += timedelta(days=1)
-        result_datetime = current_datetime + (countdown_datetime - datetime.combine(current_datetime.date(), datetime.min.time()))
-        return f"{result_datetime.strftime('%H:%M:%S %d/%m')}"
+    result_datetime = current_datetime
 
-    except ValueError:
-        pass
-    try:
-        if "Opens" in time_string:
-            day, time_string = time_string.replace("Opens","").split(" at ")
-            day, time_string = day.strip(), time_string.strip()
-            time_object = datetime.strptime(time_string, "%H:%M").time()
-            date_object = current_datetime + timedelta(days=(datetime.strptime(day, "%A").weekday() - current_datetime.weekday()) % 7)
-            return f"{time_object.strftime('%H:%M:%S %d/%m')}"
-    except ValueError:
-        pass
-    try:
-        if "Closes" in time_string:
-            day, time_string = time_string.replace("Closes","").split(" at ")
-            day, time_string = day.strip(), time_string.strip()
-            time_object = datetime.strptime(time_string, "%H:%M").time()
-            date_object = current_datetime + timedelta(days=(datetime.strptime(day, "%A").weekday() - current_datetime.weekday()) % 7)
-            return f"{time_object.strftime('%H:%M:%S %d/%m')}"
-    except ValueError:
-        pass
-    return None
+    if time_match:
+        while len(time_match.group(0)) < 8:
+            time_match = re.search(time_pattern, time_match.group(0) + ":00"[:8])
+        time = datetime.strptime(time_match.group(0), '%H:%M:%S')
 
-# Function to get car information from a page
+        if weekday_match:
+            day = weekday_match.group(0)
+            weekday_indices = {day: i for i, day in enumerate(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])}
+            day_difference = (weekday_indices[day] - current_datetime.weekday()) % 7
+            result_datetime += timedelta(days=day_difference)
+            result_datetime = result_datetime.replace(hour=time.hour, minute=time.minute, second=time.second)
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+        
+        elif month_match:        
+            month_indices = {month: i for i, month in enumerate(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov','Dec'])}
+            month = month_indices[month_match.group(0)]+1
+            result_datetime = result_datetime.replace(month=month)
+            day = daynumber_match.group(0)
+            result_datetime = result_datetime.replace(day=int(day))
+            result_datetime = result_datetime.replace(hour=time.hour, minute=time.minute, second=time.second) 
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+
+        else:
+            result_datetime += timedelta(hours=time.hour, minutes=time.minute, seconds=time.second)
+            return result_datetime.strftime("%H:%M:%S %d/%m")
+    else:
+        return None
+
 def get_car_info(item, domain):
     car_info = {}
     car_info['name'] = item.select_one('[class^="title-5 LotsOverviewListItem_title_"]').text.strip()
@@ -59,15 +64,37 @@ def get_car_info(item, domain):
     time_string = item.select_one('[class^="Countdown_timer_"]').text.strip()
     time_formatted = convert_time(time_string)
     car_info['time'] = time_formatted
+    bids_element = item.select_one('[class^="LotsOverviewListItem_countBids_"]')
+    car_info['bids'] = bids_element.text.strip().replace("Biedingen: ", "") if bids_element else -1
+    car_info['price'] = item.select_one('[class^="LotsOverviewListItem_wrapperPriceAndAction_"] span').text.strip()
+    car_info['img'] = item.select_one('img[src^="https://media.tbauctions.com/image-media/"]')['src']
     car_info['link'] = domain + item.select_one('a[class^="LotsOverviewListItem_link_"]')['href']
     car_info['lot'] = item.select_one('[class^="LotsOverviewListItem_lotNumber_"]').text.strip()
-    # Extract other car information here
     scrape_additional_info(car_info)
     return car_info
 
-# Function to scrape additional information from the car's page
+
+def scrape_car_data(url, domain, existing_car_data):
+    car_data = existing_car_data
+    new_car_data = []  
+    while url:
+        print(f"Scraping page: {url}\n")
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        car_list_items = soup.select('[class^="LotsOverview_item_"]')
+        for item in car_list_items:
+            car_info = get_car_info(item, domain)
+            scrape_additional_info(car_info)
+            new_car_data.append(car_info) 
+        next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
+        url = domain + next_page_link['href'] if next_page_link else None
+        if not url:
+            print("No next page found\n")
+    return car_data + new_car_data  # Combine the existing and new car data
+
+
 def scrape_additional_info(car_info):
-    response = requests.get(car_info['link'], headers={'User-Agent': 'Mozilla/5.0'})
+    response = requests.get(car_info['link'])
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
         car_info['image_links'] = list(set([img['src'] for img in soup.select('img[src^="https://media.tbauctions.com/image-media/"]')]))
@@ -78,51 +105,35 @@ def scrape_additional_info(car_info):
             lot_info[item.text.strip()] = value.text.strip()
         car_info.update(lot_info)
     else:
-        print("Error: ", response.status_code)
+        print("Error:", response.status_code)
 
-# Function to scrape and store car data
-def scrape_and_store_car_data(url, domain, existing_car_data):
-    car_data = existing_car_data
-    
-    while url:
-        logging.info(f"Scraping page: {url}")
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            car_list_items = soup.select('[class^="LotsOverview_item_"]')
-            
-            for item in car_list_items:
-                car_info = get_car_info(item, domain)
-                lot_number = car_info['lot']
-                if lot_number in car_data:
-                    existing_info = car_data[lot_number]
-                    if car_info['time'] > existing_info['time']:
-                        existing_info.update(car_info)
-                else:
-                    car_data[lot_number] = car_info
-            
-            next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
-            url = domain + next_page_link['href'] if next_page_link else None
-            if not url:
-                logging.info("No next page found")
-            time.sleep(1) 
-        else:
-            logging.error(f"Error while scraping {url}. Status code: {response.status_code}")
+def load_existing_data():
+    if os.path.exists(data_file) and os.path.getsize(data_file) > 0:
+        with open(data_file, 'r', encoding='utf-8') as f:
+            return {entry['lot']: entry for entry in json.load(f)}
+    return []
 
+def merge_and_filter_data(*data_sources):
+
+    car_data = []
+    for data_source in data_sources:
+        for lot, car_info in data_source.items():
+            if lot not in car_data or car_info['time'] > car_data[lot]['time']:
+                car_data[lot] = car_info
     return car_data
 
-# Load existing data from the JSON file
-existing_car_data = {}
-if os.path.exists('car_data.json'):
-    with open('car_data.json', 'r', encoding='utf-8') as f:
-        existing_car_data = json.load(f)
+def save_data(car_data):
+    with open(data_file, 'w', encoding='utf-8') as f:
+        json.dump(car_data, f, ensure_ascii=False, indent=4)
+        f.write('\n')
 
-# Scrape and store data for all URLs
-for url in urls:
-    existing_car_data = scrape_and_store_car_data(url, url, existing_car_data)
+def main():
+    existing_car_data = load_existing_data()
+    vavato_data = scrape_car_data(vavato_url, "https://vavato.com", existing_car_data)
+    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, "https://www.troostwijkauctions.com", existing_car_data)
+    car_data = merge_and_filter_data(existing_car_data, vavato_data, troostwijkauctions_data)
+    save_data(car_data)
+    logging.info("Data update and save complete")
 
-# Combine and store unique car data
-with open('car_data.json', 'w', encoding='utf-8') as f:
-    json.dump(existing_car_data, f, ensure_ascii=False, indent=4)
-
-print("Done")
+if __name__ == '__main__':
+    main()

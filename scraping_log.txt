@@ -1,3 +1,0 @@
-2023-10-18 03:45:35,083 - INFO - Scraping page: https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52
-2023-10-18 03:48:03,055 - INFO - Scraping page: https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52
-2023-10-18 03:50:10,335 - INFO - Scraping page: https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52
