@@ -86,6 +86,7 @@ def scrape_car_data(url, domain, existing_car_data):
             car_info = get_car_info(item, domain)
             scrape_additional_info(car_info)
             new_car_data.append(car_info) 
+            print(f"Scraped car: {car_info['name']}\n")
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
         url = domain + next_page_link['href'] if next_page_link else None
         if not url:
