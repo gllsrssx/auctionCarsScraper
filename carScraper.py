@@ -6,13 +6,13 @@ import json
 from datetime import datetime, timedelta
 import re
 
-# Configuration parameters
 vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
 troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+vavato_domain = "https://vavato.com"
+troostwijkauctions_domain = "https://www.troostwijkauctions.com"
 log_file = 'scraping_log.txt'
 data_file = 'car_data.json'
 
-# Configure logging
 logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def convert_time(input_string):
@@ -66,33 +66,34 @@ def get_car_info(item, domain):
     car_info['time'] = time_formatted
     bids_element = item.select_one('[class^="LotsOverviewListItem_countBids_"]')
     car_info['bids'] = bids_element.text.strip().replace("Biedingen: ", "") if bids_element else -1
-    car_info['price'] = item.select_one('[class^="LotsOverviewListItem_wrapperPriceAndAction_"] span').text.strip()
+    price_string = item.select_one('[class^="LotsOverviewListItem_wrapperPriceAndAction_"] span').text.strip()
+    price_digits = ''.join(filter(str.isdigit, price_string.split('.')[0]))
+    car_info['price'] = int(int(price_digits) * 1.2) if re.search(r'\d', price_digits) else -1
     car_info['img'] = item.select_one('img[src^="https://media.tbauctions.com/image-media/"]')['src']
     car_info['link'] = domain + item.select_one('a[class^="LotsOverviewListItem_link_"]')['href']
     car_info['lot'] = item.select_one('[class^="LotsOverviewListItem_lotNumber_"]').text.strip()
     scrape_additional_info(car_info)
     return car_info
 
-
 def scrape_car_data(url, domain, existing_car_data):
     car_data = existing_car_data
-    new_car_data = []  
+    new_car_data = {}
     while url:
-        print(f"Scraping page: {url}\n")
+        logging.info(f"Scraping page: {url}")
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         car_list_items = soup.select('[class^="LotsOverview_item_"]')
         for item in car_list_items:
             car_info = get_car_info(item, domain)
             scrape_additional_info(car_info)
-            new_car_data.append(car_info) 
-            print(f"Scraped car: {car_info['name']}\n")
+            key = car_info['lot']
+            new_car_data[key] = car_info
+            logging.info(f"Scraped car: {car_info}")
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
         url = domain + next_page_link['href'] if next_page_link else None
         if not url:
-            print("No next page found\n")
-    return car_data + new_car_data  # Combine the existing and new car data
-
+            logging.info("No next page found")
+    return {**car_data, **new_car_data}
 
 def scrape_additional_info(car_info):
     response = requests.get(car_info['link'])
@@ -106,13 +107,13 @@ def scrape_additional_info(car_info):
             lot_info[item.text.strip()] = value.text.strip()
         car_info.update(lot_info)
     else:
-        print("Error:", response.status_code)
+        logging.error(f"Error: {response.status_code}")
 
 def load_existing_data():
     if os.path.exists(data_file) and os.path.getsize(data_file) > 0:
         with open(data_file, 'r', encoding='utf-8') as f:
             return {entry['lot']: entry for entry in json.load(f)}
-    return []
+    return {}
 
 def merge_and_filter_data(*data_sources):
     car_data = {}
@@ -130,8 +131,8 @@ def save_data(car_data):
 
 def main():
     existing_car_data = load_existing_data()
-    vavato_data = scrape_car_data(vavato_url, "https://vavato.com", existing_car_data)
-    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, "https://www.troostwijkauctions.com", existing_car_data)
+    vavato_data = scrape_car_data(vavato_url, vavato_domain, existing_car_data)
+    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, troostwijkauctions_domain, existing_car_data)
     car_data = merge_and_filter_data(existing_car_data, vavato_data, troostwijkauctions_data)
     save_data(car_data)
     logging.info("Data update and save complete")
