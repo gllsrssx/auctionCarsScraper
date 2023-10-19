@@ -6,8 +6,8 @@ import json
 from datetime import datetime, timedelta
 import re
 
-vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=12"
-troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=54"
+vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=11"
+troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=55"
 vavato_domain = "https://vavato.com"
 troostwijkauctions_domain = "https://www.troostwijkauctions.com"
 log_file = 'scraping_log.txt'
@@ -76,8 +76,7 @@ def get_car_info(item, domain):
     return car_info
 
 def scrape_car_data(url, domain, existing_car_data):
-    car_data = existing_car_data
-    new_car_data = {}
+    new_car_data = []
     while url:
         logging.info(f"Scraping page: {url}")
         response = requests.get(url)
@@ -86,14 +85,15 @@ def scrape_car_data(url, domain, existing_car_data):
         for item in car_list_items:
             car_info = get_car_info(item, domain)
             scrape_additional_info(car_info)
-            key = car_info['lot']
-            new_car_data[key] = car_info
+            new_car_data.append(car_info)
             logging.info(f"Scraped car: {car_info}")
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
         url = domain + next_page_link['href'] if next_page_link else None
         if not url:
             logging.info("No next page found")
-    return {**car_data, **new_car_data}
+    
+    car_data = merge_and_filter_data(existing_car_data, new_car_data)
+    return car_data
 
 def scrape_additional_info(car_info):
     response = requests.get(car_info['link'])
@@ -112,29 +112,33 @@ def scrape_additional_info(car_info):
 def load_existing_data():
     if os.path.exists(data_file) and os.path.getsize(data_file) > 0:
         with open(data_file, 'r', encoding='utf-8') as f:
-            return {entry['lot']: entry for entry in json.load(f)}
-    return {}
+            return json.load(f)
+    return []
 
-def merge_and_filter_data(*data_sources):
-    car_data = {}
+def merge_and_filter_data(existing_data, new_data):
+    car_dict = {car['lot']: car for car in existing_data}
+    for new_car in new_data:
+        lot = new_car['lot']
+        if lot in car_dict:
+            existing_car = car_dict[lot]
+            # Update existing car data if the new car's time is later
+            if new_car['time'] > existing_car['time']:
+                car_dict[lot] = new_car
+        else:
+            car_dict[lot] = new_car
 
-    for data_source in data_sources:
-        for lot, car_info in data_source.items():
-            if lot not in car_data or car_info['time'] > car_data[lot]['time']:
-                car_data[lot] = car_info
-    return car_data
+    return list(car_dict.values())
 
 def save_data(car_data):
-    data_list = list(car_data.values())  # Convert the values of the dictionary to a list
     with open(data_file, 'w', encoding='utf-8') as f:
-        json.dump(data_list, f, ensure_ascii=False, indent=4)
+        json.dump(car_data, f, ensure_ascii=False, indent=4)
         f.write('\n')
 
 def main():
     existing_car_data = load_existing_data()
     vavato_data = scrape_car_data(vavato_url, vavato_domain, existing_car_data)
     troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, troostwijkauctions_domain, existing_car_data)
-    car_data = merge_and_filter_data(existing_car_data, vavato_data, troostwijkauctions_data)
+    car_data = merge_and_filter_data(existing_car_data, vavato_data + troostwijkauctions_data)
     save_data(car_data)
     logging.info("Data update and save complete")
 

@@ -1,14 +1,12 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template
 import json
 
 app = Flask(__name__)
 
-# Load the car data from the JSON file
-with open('car_data.json', 'r') as f:
-    car_data = json.load(f)
-
 @app.route('/')
 def index():
+    with open('car_data.json') as json_file:
+        car_data = json.load(json_file)
     return render_template('index.html', car_data=car_data)
 
 if __name__ == '__main__':
