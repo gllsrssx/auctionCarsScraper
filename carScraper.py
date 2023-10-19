@@ -6,8 +6,8 @@ import json
 from datetime import datetime, timedelta
 import re
 
-vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
-troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=12"
+troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=54"
 vavato_domain = "https://vavato.com"
 troostwijkauctions_domain = "https://www.troostwijkauctions.com"
 log_file = 'scraping_log.txt'
@@ -125,8 +125,9 @@ def merge_and_filter_data(*data_sources):
     return car_data
 
 def save_data(car_data):
+    data_list = list(car_data.values())  # Convert the values of the dictionary to a list
     with open(data_file, 'w', encoding='utf-8') as f:
-        json.dump(car_data, f, ensure_ascii=False, indent=4)
+        json.dump(data_list, f, ensure_ascii=False, indent=4)
         f.write('\n')
 
 def main():
