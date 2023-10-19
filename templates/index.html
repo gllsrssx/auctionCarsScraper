@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 
 <head>
@@ -72,26 +72,64 @@
             <option value="">Any</option>
             <option value="automaat">Automatic</option>
             <!-- Add other transmission types as needed -->
-        </select>
+</select>
 
-        <label for="max_kilometers">Maximum Kilometers:</label>
-        <input type="number" name="max_kilometers" id="max_kilometers" value="250000">
+<label for="max_kilometers">Maximum Kilometers:</label>
+<input type="number" name="max_kilometers" id="max_kilometers" value="250000">
 
-        <label for="min_bouwjaar">Minimum Year:</label>
-        <input type="number" name="min_bouwjaar" id="min_bouwjaar" value="2008">
+<label for="min_bouwjaar">Minimum Year:</label>
+<input type="number" name="min_bouwjaar" id="min_bouwjaar" value="2008">
 
-        <input type="submit" value="Apply Filters">
-    </form>
+<input type="submit" value="Apply Filters">
+</form>
 
+<table>
+    <tr>
+        <th>Lot Number</th>
+        <th>Name</th>
+        <th>Location</th>
+        <th>Time</th>
+        <th>Bids</th>
+    </tr>
+    <!-- Car data will be displayed here -->
+</table>
+</body>
+
+</html> -->
+
+
+
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Car Listings</title>
+</head>
+
+<body>
+    <h1>Car Listings</h1>
     <table>
-        <tr>
-            <th>Lot Number</th>
-            <th>Name</th>
-            <th>Location</th>
-            <th>Time</th>
-            <th>Bids</th>
-        </tr>
-        <!-- Car data will be displayed here -->
+        <thead>
+            <tr>
+                <th>Lot Number</th>
+                <th>Name</th>
+                <th>Time</th>
+                <th>Price</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for car in car_data %}
+            <tr>
+                <td>{{ car.lot }}</td>
+                <td>{{ car.name }}</td>
+                <td>{{ car.time }}</td>
+                <td>{{ car.price }}</td>
+                <td><a href="{{ car.link }}" target="_blank">Link</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 </body>
 

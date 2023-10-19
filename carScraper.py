@@ -2,12 +2,14 @@ import logging
 import os
 import requests
 from bs4 import BeautifulSoup
-import json
 from datetime import datetime, timedelta
 import re
+from database import Car, create_database
+from sqlalchemy.orm import sessionmaker
 
-vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
-troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52"
+# Your constants and URLs
+vavato_url = "https://vavato.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=12"
+troostwijkauctions_url = "https://www.troostwijkauctions.com/en/c/transport/cars/5196727d-c14f-48dc-a2f0-e75f50094a52?page=54"
 vavato_domain = "https://vavato.com"
 troostwijkauctions_domain = "https://www.troostwijkauctions.com"
 log_file = 'scraping_log.txt'
@@ -100,22 +102,12 @@ def scrape_additional_info(car_info):
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
         car_info['image_links'] = list(set([img['src'] for img in soup.select('img[src^="https://media.tbauctions.com/image-media/"]')]))
-        lot_info = {}
-        key_elements = soup.select('dt[class*="LotMetadata_key"]')
-        value_elements = soup.select('dd[class*="LotMetadata_value"]')
-        for item, value in zip(key_elements, value_elements):
-            lot_info[item.text.strip()] = value.text.strip()
+        lot_info = {item.text.strip(): value.text.strip() for item, value in zip(soup.select('dt[class*="LotMetadata_key"]'), soup.select('dd[class*="LotMetadata_value"]'))}
         car_info.update(lot_info)
     else:
         logging.error(f"Error: {response.status_code}")
 
-def load_existing_data():
-    if os.path.exists(data_file) and os.path.getsize(data_file) > 0:
-        with open(data_file, 'r', encoding='utf-8') as f:
-            return {entry['lot']: entry for entry in json.load(f)}
-    return {}
 
-def merge_and_filter_data(*data_sources):
     car_data = {}
 
     for data_source in data_sources:
@@ -124,18 +116,79 @@ def merge_and_filter_data(*data_sources):
                 car_data[lot] = car_info
     return car_data
 
-def save_data(car_data):
+    car_data_list = list(car_data.values())
     with open(data_file, 'w', encoding='utf-8') as f:
-        json.dump(car_data, f, ensure_ascii=False, indent=4)
+        json.dump(car_data_list, f, ensure_ascii=False, indent=4)
         f.write('\n')
 
+def store_data_in_database(car_data):
+    try:
+        for car_info in car_data.values():
+            existing_car = session.query(Car).filter(Car.lot == car_info['lot']).first()
+            if existing_car:
+                if car_info['time'] > existing_car.time:
+                    existing_car.name = car_info['name']
+                    existing_car.location = car_info.get('location', existing_car.location)
+                    existing_car.time = car_info['time']
+                    existing_car.bids = car_info.get('bids', existing_car.bids)
+                    existing_car.price = car_info.get('price', existing_car.price)
+                    existing_car.img = car_info.get('img', existing_car.img)
+                    existing_car.link = car_info['link']
+                    for key, value in car_info.items():
+                        if key not in ['lot', 'name', 'location', 'time', 'bids', 'price', 'img', 'link']:
+                            setattr(existing_car, key, value)
+            else:
+                new_car = Car(
+                    lot=car_info['lot'],
+                    name=car_info['name'],
+                    location=car_info.get('location'),
+                    time=car_info['time'],
+                    bids=car_info.get('bids'),
+                    price=car_info.get('price'),
+                    img=car_info.get('img'),
+                    link=car_info['link']
+                )  
+                for key, value in car_info.items():
+                    if key not in ['lot', 'name', 'location', 'time', 'bids', 'price', 'img', 'link']:
+                        setattr(new_car, key, value)
+                session.add(new_car)
+        session.commit()
+        logging.info("Data update and save complete")
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Error storing data in the database: {str(e)}")
+    finally:
+        session.close()
+
 def main():
-    existing_car_data = load_existing_data()
-    vavato_data = scrape_car_data(vavato_url, vavato_domain, existing_car_data)
-    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, troostwijkauctions_domain, existing_car_data)
-    car_data = merge_and_filter_data(existing_car_data, vavato_data, troostwijkauctions_data)
-    save_data(car_data)
+    session = create_database('h2+tcp://localhost/your_database_name')
+
+    # Query existing data from the database
+    existing_car_data = session.query(Car).all()
+    existing_car_dict = {car.lot: car for car in existing_car_data}
+
+    # Scrape data and update the database
+    vavato_data = scrape_car_data(vavato_url, vavato_domain, existing_car_dict)
+    troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, troostwijkauctions_domain, existing_car_dict)
+
+    for lot, car_info in vavato_data.items():
+        if lot not in existing_car_dict or car_info['time'] > existing_car_dict[lot].time:
+            session.merge(car_info)
+
+    for lot, car_info in troostwijkauctions_data.items():
+        if lot not in existing_car_dict or car_info['time'] > existing_car_dict[lot].time:
+            session.merge(car_info)
+
+    # Commit changes to the database
+    session.commit()
     logging.info("Data update and save complete")
 
 if __name__ == '__main__':
+    # Create the session
+    session = create_database('h2+tcp://localhost/your_database_name')
+
+    # Call your main function
     main()
+
+    # Close the session
+    session.close()
