@@ -115,8 +115,8 @@ def load_existing_data():
     return []
 
 def merge_and_filter_data(*data_sources):
+    car_data = {}
 
-    car_data = []
     for data_source in data_sources:
         for lot, car_info in data_source.items():
             if lot not in car_data or car_info['time'] > car_data[lot]['time']:
