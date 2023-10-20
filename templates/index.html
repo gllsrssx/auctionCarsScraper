@@ -2,97 +2,104 @@
 <html>
 
 <head>
-    <title>Car Data</title>
-    <script>
-        // Function to set a cookie
-        function setCookie(name, value, days) {
-            var expires = "";
-            if (days) {
-                var date = new Date();
-                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-                expires = "; expires=" + date.toUTCString();
-            }
-            document.cookie = name + "=" + value + expires + "; path=/";
-        }
-
-        // Function to get a cookie
-        function getCookie(name) {
-            var nameEQ = name + "=";
-            var cookies = document.cookie.split(';');
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i];
-                while (cookie.charAt(0) == ' ') {
-                    cookie = cookie.substring(1, cookie.length);
-                }
-                if (cookie.indexOf(nameEQ) == 0) {
-                    return cookie.substring(nameEQ.length, cookie.length);
-                }
-            }
-            return null;
-        }
-
-        // Function to update the filter form with stored values
-        function updateFilterForm() {
-            var transmissie = getCookie('transmissie');
-            var max_kilometers = getCookie('max_kilometers');
-            var min_bouwjaar = getCookie('min_bouwjaar');
-
-            document.getElementById('transmissie').value = transmissie || '';
-            document.getElementById('max_kilometers').value = max_kilometers || 250000;
-            document.getElementById('min_bouwjaar').value = min_bouwjaar || 2008;
-        }
-
-        // Function to handle form submission and store filter criteria in cookies
-        function applyFilters() {
-            var transmissie = document.getElementById('transmissie').value;
-            var max_kilometers = document.getElementById('max_kilometers').value;
-            var min_bouwjaar = document.getElementById('min_bouwjaar').value;
-
-            setCookie('transmissie', transmissie, 30);  // Store for 30 days
-            setCookie('max_kilometers', max_kilometers, 30);
-            setCookie('min_bouwjaar', min_bouwjaar, 30);
-
-            // Redirect to the same page with the filter criteria in the URL
-            window.location.href = window.location.pathname + '?' +
-                'transmissie=' + encodeURIComponent(transmissie) + '&' +
-                'max_kilometers=' + encodeURIComponent(max_kilometers) + '&' +
-                'min_bouwjaar=' + encodeURIComponent(min_bouwjaar);
-        }
-
-        // Initialize filter form with stored values
-        updateFilterForm();
-    </script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
 
 <body>
-    <h1>Car Data</h1>
-    <form onsubmit="applyFilters(); return false;">
-        <label for="transmissie">Transmission Type:</label>
-        <select name="transmissie" id="transmissie">
-            <option value="">Any</option>
-            <option value="automaat">Automatic</option>
-            <!-- Add other transmission types as needed -->
-        </select>
+    <div class="container mt-5">
+        <h1>all automatics.</h1>
+        <div class="row">
+            {% for car in car_data %}
+            {% for key, value in car.items() %}
+            {% if value is string %}
+            {% if "utoma" in value and key != "Additional information" %}
+            {% if "Belgium" in car.location or "Netherlands" in car.location %}
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <img src="{{ car.img }}" class="card-img-top" alt="Car Image" data-toggle="modal"
+                        data-target="#imageModal{{ car.lot }}">
+                    <div class="card-body" data-toggle="modal" data-target="#carDetailsModal{{ car.lot }}">
+                        <h5 class="card-title">
+                            <a href="{{ car.link }}" target="_blank">{{ car.name }}</a>
+                        </h5>
+                        <p class="card-text"><strong>Time:</strong> {{ car.time }}</p>
+                        <p class="card-text"><strong>Bids:</strong> {{ car.bids }}</p>
+                        {% for key, value in car.items() %}
+                        {% if "Mileage" in key %}
+                        <p class="card-text"><strong>Mileage:</strong>
+                            {{ "{:,.0f}".format(value|replace('mi', '')|int*1.60934).replace(',',' ') if 'mi' in value
+                            else "{:,.0f}".format(value|replace('km', '')|int).replace(',',' ') }}
+                            km
+                        </p>
+                        {% endif %}
+                        {% endfor %}
+                        <p class="card-text"><strong>Price:</strong> € {{ "{:,.0f}".format(car.price)|replace(',', ' ') }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
 
-        <label for="max_kilometers">Maximum Kilometers:</label>
-        <input type="number" name="max_kilometers" id="max_kilometers" value="250000">
+    <!-- Modal for displaying images -->
+    {% for car in car_data %}
+    <div class="modal fade" id="imageModal{{ car.lot }}" tabindex="-1" role="dialog"
+        aria-labelledby="imageModalLabel{{ car.lot }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel{{ car.lot }}">Car Images</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Loop through the image_links array to display images -->
+                    {% for image_link in car.image_links %}
+                    <img src="{{ image_link }}" class="img-fluid" alt="Car Image">
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 
-        <label for="min_bouwjaar">Minimum Year:</label>
-        <input type="number" name="min_bouwjaar" id="min_bouwjaar" value="2008">
-
-        <input type="submit" value="Apply Filters">
-    </form>
-
-    <table>
-        <tr>
-            <th>Lot Number</th>
-            <th>Name</th>
-            <th>Location</th>
-            <th>Time</th>
-            <th>Bids</th>
-        </tr>
-        <!-- Car data will be displayed here -->
-    </table>
+    <!-- Modal for displaying car details excluding img, link, and image_links -->
+    {% for car in car_data %}
+    <div class="modal fade" id="carDetailsModal{{ car.lot }}" tabindex="-1" role="dialog"
+        aria-labelledby="carDetailsModalLabel{{ car.lot }}" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="carDetailsModalLabel{{ car.lot }}">Car Details</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    {% for key, value in car.items() %}
+                    {% if key not in ['img', 'link', 'image_links'] %}
+                    <p><strong>{{ key }}:</strong> {{ value }}</p>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </body>
 
 </html>
