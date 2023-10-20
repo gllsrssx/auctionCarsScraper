@@ -69,14 +69,14 @@ def get_car_info(item, domain):
     price_string = item.select_one('[class^="LotsOverviewListItem_wrapperPriceAndAction_"] span').text.strip()
     price_digits = ''.join(filter(str.isdigit, price_string.split('.')[0]))
     car_info['price'] = int(int(price_digits) * 1.2) if re.search(r'\d', price_digits) else -1
-    car_info['img'] = item.select_one('img[src^="https://media.tbauctions.com/image-media/"]')['src']
+    img_element = item.select_one('img[src^="https://media.tbauctions.com/image-media/"]')
+    car_info['img'] = img_element['src'] if img_element else ""    
     car_info['link'] = domain + item.select_one('a[class^="LotsOverviewListItem_link_"]')['href']
     car_info['lot'] = item.select_one('[class^="LotsOverviewListItem_lotNumber_"]').text.strip()
     scrape_additional_info(car_info)
     return car_info
 
 def scrape_car_data(url, domain, existing_car_data):
-    new_car_data = []
     while url:
         logging.info(f"Scraping page: {url}")
         response = requests.get(url)
@@ -84,16 +84,21 @@ def scrape_car_data(url, domain, existing_car_data):
         car_list_items = soup.select('[class^="LotsOverview_item_"]')
         for item in car_list_items:
             car_info = get_car_info(item, domain)
-            scrape_additional_info(car_info)
-            new_car_data.append(car_info)
-            logging.info(f"Scraped car: {car_info}")
+            existing_car = next((car for car in existing_car_data if car['lot'] == car_info['lot']), None)
+            if existing_car:
+                if car_info['time'] > existing_car['time']:
+                    existing_car.update(car_info)
+                    logging.info(f"Updated car: {car_info}")
+            else:
+                existing_car_data.append(car_info)
+                logging.info(f"Added new car: {car_info}")
+        save_data(existing_car_data)
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
         url = domain + next_page_link['href'] if next_page_link else None
         if not url:
             logging.info("No next page found")
-    
-    car_data = merge_and_filter_data(existing_car_data, new_car_data)
-    return car_data
+
+    return existing_car_data
 
 def scrape_additional_info(car_info):
     response = requests.get(car_info['link'])
@@ -115,20 +120,6 @@ def load_existing_data():
             return json.load(f)
     return []
 
-def merge_and_filter_data(existing_data, new_data):
-    car_dict = {car['lot']: car for car in existing_data}
-    for new_car in new_data:
-        lot = new_car['lot']
-        if lot in car_dict:
-            existing_car = car_dict[lot]
-            # Update existing car data if the new car's time is later
-            if new_car['time'] > existing_car['time']:
-                car_dict[lot] = new_car
-        else:
-            car_dict[lot] = new_car
-
-    return list(car_dict.values())
-
 def save_data(car_data):
     with open(data_file, 'w', encoding='utf-8') as f:
         json.dump(car_data, f, ensure_ascii=False, indent=4)
@@ -138,7 +129,7 @@ def main():
     existing_car_data = load_existing_data()
     vavato_data = scrape_car_data(vavato_url, vavato_domain, existing_car_data)
     troostwijkauctions_data = scrape_car_data(troostwijkauctions_url, troostwijkauctions_domain, existing_car_data)
-    car_data = merge_and_filter_data(existing_car_data, vavato_data + troostwijkauctions_data)
+    car_data = vavato_data + troostwijkauctions_data
     save_data(car_data)
     logging.info("Data update and save complete")
 
