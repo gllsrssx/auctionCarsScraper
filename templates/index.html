@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+    <div class="container mt-3 mt-md-5">
+        <h2>cars: {{ data.cars_per_page }} / {{data.amount_of_cars}}</h2>
+        <div class="row" id="cars-container">
+            {% for car in data.cars %}
+                <div class="col-lg-4 col-md-6 col-12 mb-4">
+                    <div class="card">
+                        <!-- Make card images uniform by setting a fixed height -->
+                        <div style="height: 200px; overflow: hidden;">
+                            <img src="{{ car.images[0].url }}" class="card-img-top" alt="Car Image" data-toggle="modal" data-target="#imageModal{{ car.id }}">
+                        </div>
+                        <div class="card-body" data-toggle="modal" data-target="#carDetailsModal{{ car.id }}">
+                            <h5 class="card-title">
+                                <a href="{{ car.link }}" target="_blank">{{ car.title }}</a>
+                            </h5>
+                            <p class="card-text">
+                                <strong class="strong-label">Close:</strong> {{ car.formatted_endDate }}<br />
+                                <strong class="strong-label">Location:</strong> {{ car.location.countryCode.upper() }}, {{ car.location.city }}<br />
+                                <strong class="strong-label">Transmission:</strong> {{ car.Transmission.value }}<br />
+                                <strong class="strong-label">Bids:</strong> {{ car.bidsCount }} <br />
+                                <strong class="strong-label">Mileage:</strong> {{ "{:,}".format(car.mileage.value).replace(',', ' ') }} {{ car.mileage.unit }}<br />
+                                <strong class="strong-label">Price:</strong> {{ "{:,}".format(car.total_price).replace(',', ' ') }} €
+                         </p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+           <!-- "Back," current page number, and "Next" buttons -->
+    <div class="container mt-3 text-center">
+        <div class="row">
+            <div class="col">
+                {% if data.page > 1 %}
+                    <a href="{{ url_for('index', page=data.page - 1) }}" class="btn btn-primary btn-lg btn-block">Back</a>
+                {% endif %}
+            </div>
+            <div class="col">
+                <p class="btn btn-secondary btn-lg btn-block">{{ data.page }}/{{ data.total_pages }}</p>
+            </div>
+            <div class="col">
+                {% if data.has_more_pages %}
+                    <a href="{{ url_for('index', page=data.page + 1) }}" class="btn btn-primary btn-lg btn-block">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Modal for displaying images -->
+        {% for car in data.cars %}
+        <div class="modal fade" id="imageModal{{ car.id }}" tabindex="-1" role="dialog"
+            aria-labelledby="imageModalLabel{{ car.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="imageModalLabel{{ car.id }}">Car Images</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Loop through the image_links array to display images -->
+                        {% for image in car.images %}
+                        <img src="{{ image.url }}" class="img-fluid" alt="Car Image">
+                    {% endfor %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Modal for displaying car details -->
+        {% for car in data.cars %}
+        <div class="modal fade" id="carDetailsModal{{ car.id }}" tabindex="-1" role="dialog"
+            aria-labelledby="carDetailsModalLabel{{ car.id }}" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="carDetailsModalLabel{{ car.id }}">Car Details</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        {% for key, value in car.items() %}
+                        {% if key not in ['img', 'images', 'id', 'displayId', 'insolvencyDataIds', 'auctionId', 'urlSlug', 'startDate', 'endDate', 'auctioneerId', 'otherUrlSlugs'] %}
+                        <p><strong>{{ key }}:</strong> 
+                        {% if value is mapping %}
+                            {% if 'cents' in value and 'currency' in value %}
+                                {{ value.cents|currency_format }} {{ value.currency }}
+                            {% elif 'value' in value %}
+                                {{ value.value }} {% if value.unit != None %}{{ value.unit }}{% endif %}
+                            {% elif key == 'location' %}
+                                {{ value.countryCode|upper }}, {{ value.city }}
+                            {% elif key == 'description' %}
+                                {% if value.description != None %}{{ value.description }}{% endif %}
+                                {% if value.additionalInformation != None %}<br>Additional Information: {{ value.additionalInformation }}{% endif %}
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                        </p>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+</body>
+
+<!-- Add custom CSS for square card images -->
+<style>
+    .card .card-image-container {
+        height: 200px;
+        overflow: hidden;
+    }
+
+    .card .card-img-top {
+        object-fit: cover;
+        height: 100%;
+    }
+    .strong-label {
+        display: inline-block;
+        width: 120px; /* Adjust the width as needed */
+    }
+</style>
+
+</body>
+</html>
+
