@@ -24,9 +24,13 @@ def is_dict(value):
 app.jinja_env.tests['list'] = is_list
 app.jinja_env.tests['dict'] = is_dict
 
-@app.route('/')
+@app.route('/', methods=['GET','POST'])
 def index():
     page = int(request.args.get('page', 1))
+    INP_MAX_PRICE = int(request.form.get('INP_MAX_PRICE', 15000))  # Default to 15000 if not provided
+    INP_MAX_KM = int(request.form.get('INP_MAX_KM', 150000))  # Default to 150000 if not provided
+    data_results = update.main(INP_MAX_PRICE, INP_MAX_KM)  # Pass INP_MAX_PRICE and INP_MAX_KM to update.main
+
     start_idx = (page - 1) * cars_per_page
     end_idx = start_idx + cars_per_page
     current_page_cars = data_results[start_idx:end_idx]
@@ -40,9 +44,12 @@ def index():
         'has_more_pages': has_more_pages,
         'page': page,
         'total_pages': total_pages,
+        'INP_MAX_PRICE' : INP_MAX_PRICE,
+        'INP_MAX_KM' : INP_MAX_KM
     }
 
     return render_template('index.html', data=data_to_send)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
+

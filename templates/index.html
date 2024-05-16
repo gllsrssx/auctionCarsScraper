@@ -9,8 +9,19 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
 
-<body>
+<body>  
     <div class="container mt-3 mt-md-5">
+        <form method="POST" class="form-inline">
+            <div class="form-group mb-2">
+                <label for="INP_MAX_PRICE" class="sr-only">Max Price:</label>
+                <input type="number" class="form-control" id="INP_MAX_PRICE" name="INP_MAX_PRICE" value="{{ data.INP_MAX_PRICE }}">
+            </div>
+            <div class="form-group mx-sm-3 mb-2">
+                <label for="INP_MAX_KM" class="sr-only">Max KM:</label>
+                <input type="number" class="form-control" id="INP_MAX_KM" name="INP_MAX_KM" value="{{ data.INP_MAX_KM }}">
+            </div>
+            <button type="submit" class="btn btn-primary mb-2">Submit</button>
+        </form>
         <h2>cars: {{ data.cars_per_page }} / {{data.amount_of_cars}}</h2>
         <div class="row" id="cars-container">
             {% for car in data.cars %}
