@@ -8,7 +8,7 @@ import update
  
 app = Flask(__name__)
 data_results = update.main()
-cars_per_page = 25
+cars_per_page = 24
 
 def currency_format(value):
     return "{:.2f}".format(value / 100)
