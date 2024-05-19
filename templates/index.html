@@ -8,7 +8,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
-
+<script>
+    document.getElementById('myForm').addEventListener('submit', function() {
+        localStorage.setItem('INP_MAX_PRICE', document.getElementById('INP_MAX_PRICE').value);
+        localStorage.setItem('INP_MAX_KM', document.getElementById('INP_MAX_KM').value);
+    });
+    </script>
+    <script>
+        window.onload = function() {
+            document.getElementById('INP_MAX_PRICE').value = localStorage.getItem('INP_MAX_PRICE') || '';
+            document.getElementById('INP_MAX_KM').value = localStorage.getItem('INP_MAX_KM') || '';
+        };
+        </script>
 <body>  
     <div class="container mt-3 mt-md-5">
         <form method="POST" class="form-inline">

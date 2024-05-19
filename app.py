@@ -27,9 +27,9 @@ app.jinja_env.tests['dict'] = is_dict
 @app.route('/', methods=['GET','POST'])
 def index():
     page = int(request.args.get('page', 1))
-    INP_MAX_PRICE = int(request.form.get('INP_MAX_PRICE', 15000))  # Default to 15000 if not provided
-    INP_MAX_KM = int(request.form.get('INP_MAX_KM', 150000))  # Default to 150000 if not provided
-    data_results = update.main(INP_MAX_PRICE, INP_MAX_KM)  # Pass INP_MAX_PRICE and INP_MAX_KM to update.main
+    INP_MAX_PRICE = int(request.form.get('INP_MAX_PRICE', 10000))  
+    INP_MAX_KM = int(request.form.get('INP_MAX_KM', 100000))  
+    data_results = update.main(INP_MAX_PRICE, INP_MAX_KM) 
 
     start_idx = (page - 1) * cars_per_page
     end_idx = start_idx + cars_per_page
