@@ -8,21 +8,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
-<script>
-    document.getElementById('myForm').addEventListener('submit', function() {
-        localStorage.setItem('INP_MAX_PRICE', document.getElementById('INP_MAX_PRICE').value);
-        localStorage.setItem('INP_MAX_KM', document.getElementById('INP_MAX_KM').value);
-    });
-    </script>
-    <script>
-        window.onload = function() {
-            document.getElementById('INP_MAX_PRICE').value = localStorage.getItem('INP_MAX_PRICE') || '';
-            document.getElementById('INP_MAX_KM').value = localStorage.getItem('INP_MAX_KM') || '';
-        };
-        </script>
+
 <body>  
     <div class="container mt-3 mt-md-5">
-        <form method="POST" class="form-inline">
+        <form method="GET" class="form-inline">
             <div class="form-group mb-2">
                 <label for="INP_MAX_PRICE" class="sr-only">Max Price:</label>
                 <input type="number" class="form-control" id="INP_MAX_PRICE" name="INP_MAX_PRICE" value="{{ data.INP_MAX_PRICE }}">
@@ -61,23 +50,24 @@
         </div>
 
            <!-- "Back," current page number, and "Next" buttons -->
-    <div class="container mt-3 text-center">
-        <div class="row">
-            <div class="col">
-                {% if data.page > 1 %}
-                    <a href="{{ url_for('index', page=data.page - 1) }}" class="btn btn-primary btn-lg btn-block">Back</a>
-                {% endif %}
-            </div>
-            <div class="col">
-                <p class="btn btn-secondary btn-lg btn-block">{{ data.page }}/{{ data.total_pages }}</p>
-            </div>
-            <div class="col">
-                {% if data.has_more_pages %}
-                    <a href="{{ url_for('index', page=data.page + 1) }}" class="btn btn-primary btn-lg btn-block">Next</a>
-                {% endif %}
+    
+        <div class="container mt-3 text-center">
+            <div class="row">
+                <div class="col">
+                    {% if data.page > 1 %}
+                        <a href="?page={{ data.page - 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}" class="btn btn-primary btn-lg btn-block">Back</a>
+                    {% endif %}
+                </div>
+                <div class="col">
+                    <p class="btn btn-secondary btn-lg btn-block">{{ data.page }}/{{ data.total_pages }}</p>
+                </div>
+                <div class="col">
+                    {% if data.has_more_pages %}
+                        <a href="?page={{ data.page + 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}" class="btn btn-primary btn-lg btn-block">Next</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
 </div>
 
         <!-- Modal for displaying images -->
