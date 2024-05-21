@@ -29,7 +29,8 @@ def index():
     page = int(request.args.get('page', 1))
     INP_MAX_PRICE = int(request.args.get('INP_MAX_PRICE', request.form.get('INP_MAX_PRICE', 10000)))
     INP_MAX_KM = int(request.args.get('INP_MAX_KM', request.form.get('INP_MAX_KM', 100000)))
-    data_results = update.main(INP_MAX_PRICE, INP_MAX_KM) 
+    INP_MAX_YEAR = int(request.args.get('INP_MAX_YEAR', request.form.get('INP_MAX_YEAR', 2015)))
+    data_results = update.main(INP_MAX_PRICE, INP_MAX_KM, INP_MAX_YEAR) 
 
     start_idx = (page - 1) * cars_per_page
     end_idx = start_idx + cars_per_page
@@ -45,7 +46,8 @@ def index():
         'page': page,
         'total_pages': total_pages,
         'INP_MAX_PRICE' : INP_MAX_PRICE,
-        'INP_MAX_KM' : INP_MAX_KM
+        'INP_MAX_KM' : INP_MAX_KM,
+        'INP_MAX_YEAR' : INP_MAX_YEAR
     }
 
     return render_template('index.html', data=data_to_send)

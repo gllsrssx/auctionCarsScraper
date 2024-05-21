@@ -13,14 +13,18 @@
     <div class="container mt-3 mt-md-5">
         <form method="GET" class="form-inline">
             <div class="form-group mb-2">
-                <label for="INP_MAX_PRICE" class="sr-only">Max Price:</label>
+                <label for="INP_MAX_PRICE" >Max Price:</label>
                 <input type="number" class="form-control" id="INP_MAX_PRICE" name="INP_MAX_PRICE" value="{{ data.INP_MAX_PRICE }}">
             </div>
             <div class="form-group mx-sm-3 mb-2">
-                <label for="INP_MAX_KM" class="sr-only">Max KM:</label>
+                <label for="INP_MAX_KM" >Max KM:</label>
                 <input type="number" class="form-control" id="INP_MAX_KM" name="INP_MAX_KM" value="{{ data.INP_MAX_KM }}">
             </div>
-            <button type="submit" class="btn btn-primary mb-2">Submit max price / km</button>
+            <div class="form-group mx-sm-3 mb-2">
+                <label for="INP_MAX_YEAR" >Min Year:</label>
+                <input type="number" class="form-control" id="INP_MAX_YEAR" name="INP_MAX_YEAR" value="{{ data.INP_MAX_YEAR }}">
+            </div>
+            <button type="submit" class="btn btn-primary mb-2">Search</button>
         </form>
         <h2>cars: {{ data.cars_per_page }} / {{data.amount_of_cars}}</h2>
         <div class="row" id="cars-container">
@@ -40,6 +44,7 @@
                                 <strong class="strong-label">Location:</strong> {{ car.location.countryCode.upper() }}, {{ car.location.city }}<br />
                                 <strong class="strong-label">Transmission:</strong> {{ car.Transmission.value }}<br />
                                 <strong class="strong-label">Bids:</strong> {{ car.bidsCount }} <br />
+                                <strong class="strong-label">Year:</strong> {{ car.firstRegistrationYear.value }} <br />
                                 <strong class="strong-label">Mileage:</strong> {{ "{:,}".format(car.mileage.value).replace(',', ' ') }} {{ car.mileage.unit }}<br />
                                 <strong class="strong-label">Price:</strong> {{ "{:,}".format(car.total_price).replace(',', ' ') }} €
                          </p>
@@ -55,7 +60,7 @@
             <div class="row">
                 <div class="col">
                     {% if data.page > 1 %}
-                        <a href="?page={{ data.page - 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}" class="btn btn-primary btn-lg btn-block">Back</a>
+                        <a href="?page={{ data.page - 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MIN_YEAR={{ data.INP_MIN_YEAR }}" class="btn btn-primary btn-lg btn-block">Back</a>
                     {% endif %}
                 </div>
                 <div class="col">
@@ -63,7 +68,7 @@
                 </div>
                 <div class="col">
                     {% if data.has_more_pages %}
-                        <a href="?page={{ data.page + 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}" class="btn btn-primary btn-lg btn-block">Next</a>
+                        <a href="?page={{ data.page + 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MIN_YEAR={{ data.INP_MIN_YEAR }}" class="btn btn-primary btn-lg btn-block">Next</a>
                     {% endif %}
                 </div>
             </div>
