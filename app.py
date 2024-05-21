@@ -30,7 +30,7 @@ def index():
     page = int(request.args.get('page', 1))
     INP_MAX_PRICE = int(request.args.get('INP_MAX_PRICE', request.form.get('INP_MAX_PRICE', 10000)))
     INP_MAX_KM = int(request.args.get('INP_MAX_KM', request.form.get('INP_MAX_KM', 100000)))
-    INP_MAX_YEAR = int(request.args.get('INP_MAX_YEAR', request.form.get('INP_MAX_YEAR', 2015)))
+    INP_MAX_YEAR = int(request.args.get('INP_MAX_YEAR', request.form.get('INP_MAX_YEAR', 2014)))
     data_results = update.main(INP_MAX_PRICE, INP_MAX_KM, INP_MAX_YEAR) 
 
     start_idx = (page - 1) * cars_per_page
@@ -39,10 +39,6 @@ def index():
     total_pages = (len(data_results) + cars_per_page - 1) // cars_per_page
     has_more_pages = end_idx < len(data_results)
     
-    with open('old_data_results.json', 'r') as f:
-        old_data = json.load(f)
-    old_cars = [car for car in old_data if datetime.strptime(car['endDate'], '%Y-%m-%d') < datetime.now()]
-
     data_to_send = {
         'cars_per_page': cars_per_page, 
         'amount_of_cars': len(data_results),
@@ -53,7 +49,6 @@ def index():
         'INP_MAX_PRICE' : INP_MAX_PRICE,
         'INP_MAX_KM' : INP_MAX_KM,
         'INP_MAX_YEAR' : INP_MAX_YEAR,
-        'old_cars': old_cars,  # Add this line
     }
 
     return render_template('index.html', data=data_to_send)
