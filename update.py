@@ -11,32 +11,36 @@ def attribute_cars(data):
         # Create a new dictionary for car attributes
         car_attributes = {}
         transmission_set = False
+        mileage_set = False
         if 'attributes' in car:
             for attribute in car['attributes']:
-                name = attribute['name']
+                name = attribute['name'].lower()
                 value = attribute['value']
                 unit = attribute['unit']
-                if 'mileage' in name.lower():
+                if 'mileage' in name:
                     name = 'mileage'
                     unit = 'km'
-                if ('transmission' in name.lower() or 'driving' in name.lower()) and 'automa' in value.lower():
+                    mileage_set = True
+                if ('transmission' in name or 'driving' in name) and 'automa' in value.lower():
                     name = 'Transmission'
                     value = 'Automatic'
                     transmission_set = True
-                if 'first registration date' in car:
+                elif ('transmission' in name or 'driving' in name) and 'manual' in value.lower():
+                    name = 'Transmission'
+                    value = 'Manual'
+                    transmission_set = True
+                if 'first registration date' in name.lower() and 'nl' not in name.lower():                    
                     name = 'firstRegistrationYear'
-                    value = car['first registration date']
                     match = re.search(r'\b\d{4}\b', value)
                     if match:
                         value = int(match.group())
                     else:
                         value = datetime.now().year  # default value
-                else:
-                    name = 'firstRegistrationYear'
-                    value = datetime.now().year  # default value
                 car_attributes[name] = {'unit': unit, 'value': value}
             if not transmission_set:
                 car_attributes['Transmission'] = {'unit': '', 'value': 'Unknown'}
+            if not mileage_set:
+                car_attributes['mileage'] = {'unit': 'km', 'value': 0}
             # Update the car dictionary with attributes
             car.update(car_attributes)
             # Remove the 'attributes' key
@@ -51,7 +55,7 @@ def update_cars(data):
         # Check if mileage is in miles and convert it
         if 'mileage' in car and car['mileage'].get('unit', '').lower() == 'mi':
             car['mileage'] = {'unit': 'km', 'value': int(float(car['mileage'].get('value', 0)) * 1.60934)}
-        elif 'mileage' not in car or not car['mileage'].get('value', '').isdigit():
+        elif 'mileage' not in car or not str(car['mileage'].get('value', '')).isdigit():
             car['mileage'] = {'unit': 'km', 'value': 0}
         car['mileage']['value'] = int(car['mileage']['value'])
     return data
