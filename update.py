@@ -1,4 +1,5 @@
-import json, re
+import json
+import re
 from datetime import datetime
 
 INP_MAX_PRICE = 10000
@@ -9,6 +10,7 @@ def attribute_cars(data):
     for car in data:
         # Create a new dictionary for car attributes
         car_attributes = {}
+        transmission_set = False
         if 'attributes' in car:
             for attribute in car['attributes']:
                 name = attribute['name']
@@ -20,14 +22,21 @@ def attribute_cars(data):
                 if ('transmission' in name.lower() or 'driving' in name.lower()) and 'automa' in value.lower():
                     name = 'Transmission'
                     value = 'Automatic'
-                if 'first registration date' in name.lower():
+                    transmission_set = True
+                if 'first registration date' in car:
                     name = 'firstRegistrationYear'
+                    value = car['first registration date']
                     match = re.search(r'\b\d{4}\b', value)
                     if match:
                         value = int(match.group())
                     else:
-                        value = datetime.now().year
+                        value = datetime.now().year  # default value
+                else:
+                    name = 'firstRegistrationYear'
+                    value = datetime.now().year  # default value
                 car_attributes[name] = {'unit': unit, 'value': value}
+            if not transmission_set:
+                car_attributes['Transmission'] = {'unit': '', 'value': 'Unknown'}
             # Update the car dictionary with attributes
             car.update(car_attributes)
             # Remove the 'attributes' key
@@ -53,7 +62,7 @@ def filter_cars(data, INP_MAX_PRICE, INP_MAX_KM, INP_MAX_YEAR):
         # print(car['id'])
         if (car['total_price'] <= INP_MAX_PRICE 
             and car['mileage']['value'] <= INP_MAX_KM 
-            and 'Transmission' in car and car['Transmission']['value'].lower() == 'automatic'
+            and 'Transmission' in car and (car['Transmission']['value'].lower() == 'automatic' or car['Transmission']['value'].lower() == 'unknown')
             and car['location']['countryCode'] in ['be', 'de', 'nl']
             and 'firstRegistrationYear' in car and car['firstRegistrationYear']['value'] >= INP_MAX_YEAR):  
             filtered_cars.append(car)

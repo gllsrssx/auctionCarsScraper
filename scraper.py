@@ -1,5 +1,7 @@
 import requests
 import json
+import os
+import shutil
 from bs4 import BeautifulSoup
 
 def scrape_lots_data(domain, endlink):
@@ -14,7 +16,13 @@ def scrape_lots_data(domain, endlink):
 
         if response.status_code != 200:
             print(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
-            break
+            base_url = f"{domain}en/l/transport/cars/{endlink}"
+            page_url = f"{base_url}?page={page}"
+            print(f"Retrying with {page_url}...")
+            response = requests.get(page_url)
+            if response.status_code != 200:
+                print(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
+                break
 
         soup = BeautifulSoup(response.text, 'html.parser')
         script = soup.find('script', id='__NEXT_DATA__')
@@ -83,6 +91,18 @@ def main():
     combined_results = combine_data(results_vavato, results_troostwijkauctions)
 
     data_results = scrape_lot_data(combined_results)
+    
+    if os.path.exists('data_results.json'):
+            if os.path.exists('old_data_results.json'):
+                with open('old_data_results.json', 'r') as f:
+                    old_data = json.load(f)
+                with open('data_results.json', 'r') as f:
+                    new_data = json.load(f)
+                combined_data = old_data + new_data
+                with open('old_data_results.json', 'w') as f:
+                    json.dump(combined_data, f, indent=4)
+            else:
+                shutil.move('data_results.json', 'old_data_results.json')
 
     with open('data_results.json', 'w') as f:
         json.dump(data_results, f, indent=4)
