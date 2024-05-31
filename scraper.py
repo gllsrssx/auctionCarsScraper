@@ -3,25 +3,44 @@ import json
 import os
 import shutil
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+import time
+import logging
+
+# logging.basicConfig(level=logging.INFO)
 
 def scrape_lots_data(domain, endlink):
     base_url = f"{domain}en/c/transport/cars/{endlink}"
     all_results = []
 
+    # Create a session object
+    session = requests.Session()
+
+    # Define the retry settings
+    retry = Retry(total=5, backoff_factor=0.1, status_forcelist=[ 500, 502, 503, 504 ])
+
+    # Mount it for both http and https usage
+    session.mount('http://', HTTPAdapter(max_retries=retry))
+    session.mount('https://', HTTPAdapter(max_retries=retry))
+
     page = 1
     while True:
         page_url = f"{base_url}?page={page}"
-        print(f"Scraping data from {page_url}...")
-        response = requests.get(page_url)
+        logging.info(f"Scraping data from {page_url}...")
+        
+        # Use session.get instead of requests.get
+        response = session.get(page_url)
 
         if response.status_code != 200:
-            print(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
+            logging.error(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
             base_url = f"{domain}en/l/transport/cars/{endlink}"
             page_url = f"{base_url}?page={page}"
-            print(f"Retrying with {page_url}...")
-            response = requests.get(page_url)
+            logging.error(f"Retrying with {page_url}...")
+            headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'}
+            response = requests.get(result['link'], headers=headers)
             if response.status_code != 200:
-                print(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
+                logging.error(f"Failed to retrieve data from {page_url}. Status code: {response.status_code}")
                 break
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -34,7 +53,7 @@ def scrape_lots_data(domain, endlink):
                 result['domain'] = domain
             all_results.extend(lots_data.get('results', []))
         else:
-            print("No 'lotsData' found in the JSON data.")
+            logging.error("No 'lotsData' found in the JSON data.")
             break
 
         next_page_link = soup.select_one('[class^="Pagination_nextLink_"]')
@@ -51,11 +70,11 @@ def scrape_lots_data(domain, endlink):
 
 def combine_data(result1, result2):
     if not (result1 and result2):
-        print("Error: 'results' key is missing in one or both dictionaries.")
+        logging.error("Error: 'results' key is missing in one or both dictionaries.")
         return None
 
     combined_results = result1 + result2
-    print(f"Combined {len(result1)} results with {len(result2)} results.")
+    logging.info(f"Combined {len(result1)} results with {len(result2)} results.")
     return combined_results
 
 def scrape_lot_data(results):
@@ -65,23 +84,37 @@ def scrape_lot_data(results):
     for result in results:
         i+=1
         result['link'] = f"{result['domain']}en/l/{result['urlSlug']}"
-        response = requests.get(result['link'])
-        print(f"{i}/{total_count} Scraping data from {result['link']}...")
+        try:
+            response = requests.get(result['link'])
+            logging.info(f"{i}/{total_count} Scraping data from {result['link']}...")
 
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            script = soup.find('script', id='__NEXT_DATA__')
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                script = soup.find('script', id='__NEXT_DATA__')
 
-            if script:
-                data_json = json.loads(script.string)
-                lot_data = data_json.get('props', {}).get('pageProps', {}).get('lot', {})
-                result.update(lot_data)
+                if script:
+                    data_json = json.loads(script.string)
+                    lot_data = data_json.get('props', {}).get('pageProps', {}).get('lot', {})
+                    result.update(lot_data)
 
-        updated_results.append(result)
-
+            updated_results.append(result)
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error while scraping {result['link']}: {e}")
     return updated_results
 
+def remove_duplicates(data):
+    seen = set()
+    new_data = []
+    for car in data:
+        if car['id'] not in seen:
+            seen.add(car['id'])
+            new_data.append(car)
+    return new_data
+
 def main():
+    logging.info("Scraping")
+    logging.error("Scraping")
+    
     url_vavato = ['https://vavato.com/', '5196727d-c14f-48dc-a2f0-e75f50094a52']
     url_troostwijkauctions = ['https://www.troostwijkauctions.com/', '5196727d-c14f-48dc-a2f0-e75f50094a52']
 
@@ -106,7 +139,22 @@ def main():
 
     with open('data_results.json', 'w') as f:
         json.dump(data_results, f, indent=4)
-    print("Data has been successfully scraped and combined @ data_results.json. len(data_results) = ", len(data_results))
+    logging.info("Data has been successfully scraped and combined @ data_results.json. len(data_results) = ", len(data_results))
+    
+    if os.path.exists('data_results.json'):
+        with open('data_results.json', 'r') as f:
+            data = json.load(f)
+        data = remove_duplicates(data)
+        with open('data_results.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
+    if os.path.exists('old_data_results.json'):
+        with open('old_data_results.json', 'r') as f:
+            old_data = json.load(f)
+        old_data = remove_duplicates(old_data)
+        with open('old_data_results.json', 'w') as f:
+            json.dump(old_data, f, indent=4)
+   
 
 if __name__ == '__main__':
     main()

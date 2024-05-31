@@ -1,6 +1,9 @@
 import json
 import re
 from datetime import datetime
+import logging
+
+# logging.basicConfig(level=logging.INFO)
 
 INP_MAX_PRICE = 10000
 INP_MAX_KM = 100000
@@ -74,8 +77,8 @@ def filter_cars(data, INP_MAX_PRICE, INP_MAX_KM, INP_MAX_YEAR):
     filtered_cars.sort(key=lambda car: car['endDate'])
     return filtered_cars
 
-def main(INP_MAX_PRICE=10000, INP_MAX_KM=100000, INP_MAX_YEAR=2015):  
-    with open('data_results.json', 'r') as f:
+def main(data_file, INP_MAX_PRICE=10000, INP_MAX_KM=100000, INP_MAX_YEAR=2015):  
+    with open(data_file, 'r') as f:
         data_results = json.load(f)
 
     data_results = attribute_cars(data_results)

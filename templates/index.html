@@ -46,7 +46,30 @@
           />
         </div>
         <button type="submit" class="btn btn-primary mb-2">Search</button>
+        <input
+          type="hidden"
+          id="data_source"
+          name="data_source"
+          value="{{ data.data_source }}"
+        />
+        <div class="form-group mb-2 float-right">
+          <button
+            type="button"
+            class="btn btn-secondary mb-2"
+            onclick="toggleDataLoad()"
+          >
+            Load {{ 'Old' if data.data_source == 'new' else 'New' }} Data
+          </button>
+        </div>
+        <script>
+          function toggleDataLoad() {
+            var data_source = document.getElementById("data_source");
+            data_source.value = data_source.value == "old" ? "new" : "old";
+            document.querySelector(".form-inline").submit();
+          }
+        </script>
       </form>
+
       <h2>cars: {{ data.cars_per_page }} / {{data.amount_of_cars}}</h2>
       <div class="row" id="cars-container">
         {% for car in data.cars %}
@@ -75,17 +98,24 @@
                 car.formatted_endDate }}<br />
                 <strong class="strong-label">Location:</strong> {{
                 car.location.countryCode.upper() }}, {{ car.location.city }}<br />
-                <strong class="strong-label">Transmission:</strong> {{
-                car.Transmission.value }}<br />
+                <strong class="strong-label">Transmission:</strong> {% if
+                'Transmission' in car %} {{ car.Transmission.value }}<br />
+                {% endif %}
                 <strong class="strong-label">Bids:</strong> {{ car.bidsCount }}
                 <br />
-                <strong class="strong-label">Year:</strong> {{
+                <strong class="strong-label">Year:</strong> {% if
+                'firstRegistrationYear' in car %} {{
                 car.firstRegistrationYear.value }} <br />
-                <strong class="strong-label">Mileage:</strong> {{
-                "{:,}".format(car.mileage.value).replace(',', ' ') }} {{
-                car.mileage.unit }}<br />
-                <strong class="strong-label">Price:</strong> {{
-                "{:,}".format(car.total_price).replace(',', ' ') }} €
+                {% endif %}
+                <strong class="strong-label">Mileage:</strong> {% if 'mileage'
+                in car %} {{ "{:,}".format(car.mileage.value).replace(',', ' ')
+                }} {{ car.mileage.unit }}<br />
+                {% endif %}
+
+                <strong class="strong-label">Price:</strong> {% if 'total_price'
+                in car and car.total_price is not none %} {{
+                "{:,}".format(car.total_price).replace(',', ' ') }} € {% endif
+                %}
               </p>
             </div>
           </div>
@@ -100,7 +130,7 @@
           <div class="col">
             {% if data.page > 1 %}
             <a
-              href="?page={{ data.page - 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MIN_YEAR={{ data.INP_MIN_YEAR }}"
+              href="?page={{ data.page - 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MAX_YEAR={{ data.INP_MAX_YEAR }}&data_source={{ data.data_source }}"
               class="btn btn-primary btn-lg btn-block"
               >Back</a
             >
@@ -114,7 +144,7 @@
           <div class="col">
             {% if data.has_more_pages %}
             <a
-              href="?page={{ data.page + 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MIN_YEAR={{ data.INP_MIN_YEAR }}"
+              href="?page={{ data.page + 1 }}&INP_MAX_PRICE={{ data.INP_MAX_PRICE }}&INP_MAX_KM={{ data.INP_MAX_KM }}&INP_MAX_YEAR={{ data.INP_MAX_YEAR }}&data_source={{ data.data_source }}"
               class="btn btn-primary btn-lg btn-block"
               >Next</a
             >
