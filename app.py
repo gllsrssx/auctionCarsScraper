@@ -9,7 +9,7 @@ from datetime import datetime
 import os
 import logging
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.INFO)
  
 app = Flask(__name__)
 cars_per_page = 24
@@ -32,7 +32,6 @@ scraper_process = None
 
 @app.route('/', methods=['GET','POST'])
 def index():
-    logging.info("Scraper started")
     global scraper_process
     if scraper_process is None or not scraper_process.is_alive():
         logging.info("Starting scraper process")
@@ -77,7 +76,6 @@ def index():
 
 def run_scraper():
     while True:
-        logging.info("Running scraper")
         scraper.main()
         
 if __name__ == '__main__':

@@ -110,8 +110,7 @@ def remove_duplicates(data):
     return list(seen.values())
 
 def main():
-    logging.info("Scraping")
-    logging.error("Scraping")
+    logging.warning("Scraping")
     
     url_vavato = ['https://vavato.com/', '5196727d-c14f-48dc-a2f0-e75f50094a52']
     url_troostwijkauctions = ['https://www.troostwijkauctions.com/', '5196727d-c14f-48dc-a2f0-e75f50094a52']
