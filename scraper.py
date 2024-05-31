@@ -103,13 +103,11 @@ def scrape_lot_data(results):
     return updated_results
 
 def remove_duplicates(data):
-    seen = set()
-    new_data = []
+    seen = {}
     for car in data:
-        if car['id'] not in seen:
-            seen.add(car['id'])
-            new_data.append(car)
-    return new_data
+        if car['urlSlug'] not in seen or car['currentBidAmount']['cents'] > seen[car['urlSlug']]['currentBidAmount']['cents']:
+            seen[car['urlSlug']] = car
+    return list(seen.values())
 
 def main():
     logging.info("Scraping")
